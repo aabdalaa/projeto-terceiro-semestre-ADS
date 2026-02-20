@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMonitor ODS 13 - ADS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --primary: #2e7d32; --secondary: #1b5e20; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #eceff1; }
+        header { background: var(--primary); color: white; padding: 1rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #map { flex: 1; width: 100%; z-index: 1; }
+        .controls { padding: 15px; background: white; border-top: 3px solid var(--primary); display: flex; flex-direction: column; gap: 10px; }
+        input { padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+        button { background: var(--primary); color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        button:hover { background: var(--secondary); }
+        .info { font-size: 12px; color: #666; text-align: center; }
+        #status { color: #2e7d32; font-weight: bold; text-align: center; height: 20px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <strong>EcoMonitor ODS 13</strong><br>
+    <small>Sistema de Resiliência Climática - Extensão ADS</small>
+</header>
+
+<div id="map"></div>
+
+<div class="controls">
+    <div id="status">Aguardando localização...</div>
+    <input type="text" id="desc" placeholder="Ex: Acúmulo de lixo, bueiro obstruído...">
+    <button onclick="registrarPonto()">Registrar Ocorrência</button>
+    <p class="info">Dica: Se o GPS falhar, <b>clique no mapa</b> para definir o local.</p>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Inicializa o mapa (Padrão São Paulo se o GPS falhar)
+    const map = L.map('map').setView([-23.5505, -46.6333], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marcadorAtual = null;
+    let coordenadasSelecionadas = null;
+
+    // 1. Tentar pegar localização Real via GPS
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            coordenadasSelecionadas = [latitude, longitude];
+            atualizarMarcador(coordenadasSelecionadas, "Sua localização atual");
+            map.setView(coordenadasSelecionadas, 16);
+            document.getElementById('status').innerText = "📍 GPS Ativo";
+        }, () => {
+            document.getElementById('status').innerText = "⚠️ GPS Offline. Clique no mapa.";
+        });
+    }
+
+    // 2. Permitir seleção MANUAL clicando no mapa (Contorno de erro/Localhost)
+    map.on('click', function(e) {
+        coordenadasSelecionadas = [e.latlng.lat, e.latlng.lng];
+        atualizarMarcador(coordenadasSelecionadas, "Local selecionado para denúncia");
+        document.getElementById('status').innerText = "📍 Local selecionado manualmente";
+    });
+
+    function atualizarMarcador(latlng, msg) {
+        if (marcadorAtual) map.removeLayer(marcadorAtual);
+        marcadorAtual = L.marker(latlng).addTo(map).bindPopup(msg).openPopup();
+    }
+
+    function registrarPonto() {
+        const desc = document.getElementById('desc').value;
+        
+        if (!coordenadasSelecionadas) {
+            return alert("Por favor, selecione um local no mapa primeiro.");
+        }
+        if (!desc) {
+            return alert("Descreva o problema para o relatório da ODS 13.");
+        }
+
+        // Simulação de registro visual (Círculo de Alerta Climático)
+        L.circle(coordenadasSelecionadas, {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.5,
+            radius: 40
+        }).addTo(map).bindPopup(`<b>ALERTA AMBIENTAL:</b><br>${desc}`).openPopup();
+        
+        document.getElementById('status').innerText = "✅ REGISTRADO COM SUCESSO!";
+        document.getElementById('desc').value = "";
+        
+        // Log no console para provar que os dados estão prontos para um Backend
+        console.log("JSON pronto para API:", {
+            lat: coordenadasSelecionadas[0],
+            lng: coordenadasSelecionadas[1],
+            descricao: desc,
+            ods: 13,
+            data: new Date().toISOString()
+        });
+    }
+</script>
+</body>
+</html>
